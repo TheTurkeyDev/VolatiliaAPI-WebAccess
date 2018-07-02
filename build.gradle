@@ -8,7 +8,7 @@ else
     logger.lifecycle "No build number detected, setting to 0"
 
 version= "${proj_version}.${buildnumber}"
-group= "com.theprogrammingturkey.volatiliaApi"
+group= "com.theprogrammingturkey.volatiliaweb"
 archivesBaseName= "VolatiliaAPI-WebAccess"
 
 publishing {
