@@ -1,0 +1,30 @@
+apply plugin: "java"
+apply plugin: "maven-publish"
+
+ext.buildnumber = 0
+if (System.getenv('BUILD_NUMBER') != null)
+    project.buildnumber = System.getenv('BUILD_NUMBER')
+else
+    logger.lifecycle "No build number detected, setting to 0"
+
+version= "${proj_version}.${buildnumber}"
+group= "com.theprogrammingturkey.volatiliaApi"
+archivesBaseName= "VolatiliaAPI-WebAccess"
+
+publishing {
+       publications {
+        mavenJava(MavenPublication) {
+        	artifactId 'VolatiliaAPI-WebAccess'
+            from components.java
+        }
+    }
+
+    repositories {
+        if (project.hasProperty('mavendir')) {
+            maven { url mavendir }
+        }
+        else{
+        	logger.error('Failed to find maven directory')
+        }
+    }
+}
