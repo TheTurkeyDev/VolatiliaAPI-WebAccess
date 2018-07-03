@@ -1,8 +1,9 @@
 package com.theprogrammingturkey.volatiliaweb;
 
-import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ public class WebRequestBuilder
 	private RequestType type;
 	private List<HeaderProperty> headers;
 	private List<URLProperty> urlProps;
+	private boolean urlParametersAsBody;
 
 	/**
 	 * Initiates a web request to later be executed from the given url as a GET Request
@@ -37,9 +39,32 @@ public class WebRequestBuilder
 	public WebRequestBuilder(String url, RequestType type)
 	{
 		this.url = url;
-		this.type = type;
+		setRequestType(type);
 		this.headers = new ArrayList<>();
 		this.urlProps = new ArrayList<>();
+	}
+
+	/**
+	 * Set the request type of this web request
+	 * 
+	 * @param type
+	 *            to be set to
+	 */
+	public void setRequestType(RequestType type)
+	{
+		this.type = type;
+		urlParametersAsBody = type != RequestType.GET;
+	}
+
+	/**
+	 * Configures whether or not the url parameters passed should be sent as body text instead of in
+	 * the url
+	 * 
+	 * @param asBody
+	 */
+	public void setURLPropertiesAsBody(boolean asBody)
+	{
+		urlParametersAsBody = asBody;
 	}
 
 	/**
@@ -98,50 +123,62 @@ public class WebRequestBuilder
 	 */
 	public String executeRequest() throws IOException
 	{
-		HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+		StringBuilder builder = new StringBuilder(url);
+		if(!this.urlParametersAsBody)
+		{
+			builder.append("?");
+
+			for(URLProperty property : urlProps)
+			{
+				builder.append(property.toString());
+				builder.append("&");
+			}
+		}
+
+		HttpURLConnection con = (HttpURLConnection) new URL(builder.toString()).openConnection();
 		con.setUseCaches(false);
-		con.setDoOutput(true);
+
+		if(this.urlParametersAsBody)
+			con.setDoOutput(true);
+
 		con.setDoInput(true);
 		con.setReadTimeout(5000);
 		con.setRequestProperty("Connection", "keep-alive");
+		con.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:16.0) Gecko/20100101 Firefox/16.0");
 
-		boolean userAgentSet = false;
 		for(HeaderProperty headProp : headers)
 		{
-			if(headProp.getKey().equalsIgnoreCase("User-Agent"))
-				userAgentSet = true;
 			con.setRequestProperty(headProp.getKey(), headProp.getValue());
 		}
 
-		if(!userAgentSet)
-			con.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:16.0) Gecko/20100101 Firefox/16.0");
-
-		((HttpURLConnection) con).setRequestMethod(type.name());
+		con.setRequestMethod(type.name());
 		con.setConnectTimeout(5000);
 
-		StringBuilder builder = new StringBuilder();
-		builder.append("?");
-
-		for(URLProperty property : urlProps)
+		if(this.urlParametersAsBody)
 		{
-			builder.append(property.toString());
-			builder.append("&");
+			builder = new StringBuilder();
+
+			for(URLProperty property : urlProps)
+			{
+				builder.append(property.toString());
+				builder.append("&");
+			}
+
+			if(builder.length() > 0)
+				builder.deleteCharAt(builder.length() - 1);
+
+			DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+			wr.writeBytes(builder.toString());
+			wr.flush();
+			wr.close();
 		}
 
-		if(builder.length() > 0)
-			builder.deleteCharAt(builder.length() - 1);
-
-		DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-		wr.writeBytes(builder.toString());
-		wr.flush();
-		wr.close();
-
-		BufferedInputStream in = new BufferedInputStream(con.getInputStream());
+		BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
 
 		StringBuilder buffer = new StringBuilder();
-		int chars_read;
-		while((chars_read = in.read()) != -1)
-			buffer.append((char) chars_read);
+		String line;
+		while((line = reader.readLine()) != null)
+			buffer.append(line);
 
 		return buffer.toString();
 	}
