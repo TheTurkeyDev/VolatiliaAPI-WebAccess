@@ -116,12 +116,11 @@ public class WebRequestBuilder
 	}
 
 	/**
-	 * Executes the currently constructed web request and returns the result
+	 * Gets the URL that this Builder currently holds
 	 * 
-	 * @return result of the web request
-	 * @throws IOException
+	 * @return
 	 */
-	public String executeRequest() throws IOException
+	public String getURL()
 	{
 		StringBuilder builder = new StringBuilder(url);
 		if(!this.urlParametersAsBody)
@@ -134,8 +133,39 @@ public class WebRequestBuilder
 				builder.append("&");
 			}
 		}
+		return builder.toString();
+	}
 
-		HttpURLConnection con = (HttpURLConnection) new URL(builder.toString()).openConnection();
+	/**
+	 * Gets the body content that the builder currently has
+	 * 
+	 * @return
+	 */
+	public String getBody()
+	{
+		StringBuilder builder = new StringBuilder();
+
+		for(URLProperty property : urlProps)
+		{
+			builder.append(property.toString());
+			builder.append("&");
+		}
+
+		if(builder.length() > 0)
+			builder.deleteCharAt(builder.length() - 1);
+
+		return builder.toString();
+	}
+
+	/**
+	 * Executes the currently constructed web request and returns the result
+	 * 
+	 * @return result of the web request
+	 * @throws IOException
+	 */
+	public String executeRequest() throws IOException
+	{
+		HttpURLConnection con = (HttpURLConnection) new URL(getURL()).openConnection();
 		con.setUseCaches(false);
 
 		if(this.urlParametersAsBody)
@@ -156,19 +186,8 @@ public class WebRequestBuilder
 
 		if(this.urlParametersAsBody)
 		{
-			builder = new StringBuilder();
-
-			for(URLProperty property : urlProps)
-			{
-				builder.append(property.toString());
-				builder.append("&");
-			}
-
-			if(builder.length() > 0)
-				builder.deleteCharAt(builder.length() - 1);
-
 			DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-			wr.writeBytes(builder.toString());
+			wr.writeBytes(getBody());
 			wr.flush();
 			wr.close();
 		}
